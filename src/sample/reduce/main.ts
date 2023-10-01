@@ -1,3 +1,4 @@
+import test from 'node:test';
 import { makeSample, SampleInit } from '../../components/SampleLayout';
 
 import reduceWGSL from './reduce.wgsl';
@@ -21,6 +22,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     algorithm: string;
     numPoints: number;
     workgroupSize: number;
+    data: Float32Array;
   }
 
   const testCases: TestCase[] = [];
@@ -96,6 +98,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
           algorithm: 'reduce' + algoNumber.toString(),
           numPoints: numPoints,
           workgroupSize: workgroupSize,
+          data: null,
         });
       }
     }
@@ -291,10 +294,10 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   let computePipeline: GPUComputePipeline;
 
   const initTestCase = (testCase: TestCase) => {
-    const testData = new Float32Array(testCase.numPoints);
+    testCase.data = new Float32Array(testCase.numPoints);
 
     for (let i = 0; i < testCase.numPoints; ++i) {
-      testData[i] = Math.random();
+      testCase.data[i] = Math.random();
     }
 
     if (testDataBuffer !== undefined) {
@@ -313,7 +316,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
       const mappedTestBuffer = new Float32Array(
         testDataBuffer.getMappedRange()
       );
-      mappedTestBuffer.set(testData);
+      mappedTestBuffer.set(testCase.data);
       testDataBuffer.unmap();
     }
 
@@ -404,6 +407,22 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
       const testCase = testCases[testIndex];
 
       if (state === State.runningChecks) {
+        if (testIndex < testCases.length) {
+          initTestCase(testCase);
+          reduceGpu(
+            testCase.numPoints,
+            testCase.workgroupSize,
+            true,
+            testCase.data
+          );
+
+          testIndex++;
+
+          sendExecuteMessage();
+        } else {
+          state = State.runningBenchmarks;
+          sendExecuteMessage();
+        }
       } else if (state === State.runningBenchmarks) {
         if (caseCount === 0) {
           initTestCase(testCase);
@@ -411,8 +430,6 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
         }
 
         for (let i = 0; i < casesPerPost; ++i) {
-          if (state == State.stopRequested) {
-          }
           reduceGpu(testCase.numPoints, testCase.workgroupSize, false, null);
         }
 
@@ -434,8 +451,13 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
 
           if (testIndex < testCases.length) {
             sendExecuteMessage();
+          } else {
+            resetState();
           }
         }
+      } else if (state === State.stopRequested) {
+        resetState();
+        return;
       }
     }
   };
