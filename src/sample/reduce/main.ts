@@ -1,4 +1,3 @@
-import test from 'node:test';
 import { makeSample, SampleInit } from '../../components/SampleLayout';
 
 import reduceWGSL from './reduce.wgsl';
@@ -305,7 +304,9 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
 
         const gpuResult = new Float32Array(mappedBuffer)[0];
 
-        const logLine = `algorithm:  cpu: ${cpuResult} gpu: ${gpuResult} dispatches: ${testCase.numDispatches}\n`;
+        const passed = (cpuResult - gpuResult) / cpuResult < 1e-13;
+
+        const logLine = `algorithm: ${testCase.algorithm} num points: ${testCase.numPoints} wg size: ${testCase.workgroupSize} dispatches: ${testCase.numDispatches} passed: ${passed}\n`;
 
         logTextEntry.textContent = logTextEntry.textContent + logLine;
 
@@ -453,6 +454,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
           sendExecuteMessage();
         } else {
           state = State.runningBenchmarks;
+          testIndex = 0;
           sendExecuteMessage();
         }
       } else if (state === State.runningBenchmarks) {
