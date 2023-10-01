@@ -367,11 +367,30 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
 
   let state: State = State.stopped;
 
+  let postMessagePending = 0;
+
+  const casesPerPost = 100;
+  const maxCaseCount = 10000;
+  let caseCount = 0;
+  let testIndex = 0;
+  let caseStartTime: number;
+
+  const reportBenchmarks = () => {};
+
+  const cleanupBenchmarks = () => {};
+
+  const resetState = () => {
+    caseCount = 0;
+    testIndex = 0;
+    state = State.stopped;
+  };
+
   gui.add(
     {
       start: () => {
         if (state === State.stopped) {
           resetState();
+          cleanupBenchmarks();
           state = State.runningChecks;
           sendExecuteMessage();
         }
@@ -391,19 +410,10 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     'stop'
   );
 
-  let postMessagePending = 0;
-
-  const casesPerPost = 100;
-  const maxCaseCount = 10000;
-  let caseCount = 0;
-  let testIndex = 0;
-  let caseStartTime: number;
-
-  const resetState = () => {
-    caseCount = 0;
-    testIndex = 0;
-    state = State.stopped;
-  };
+  // Add case count control
+  // Add selection for:
+  // x-axis: [workgroupSize, algorithm, numpoints]
+  // series: [workgroupSize, algorithm, numpoints]
 
   window.onmessage = () => {
     postMessagePending--;
@@ -453,6 +463,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
             sendExecuteMessage();
           } else {
             resetState();
+            reportBenchmarks();
           }
         }
       } else if (state === State.stopRequested) {
