@@ -22,7 +22,9 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     algorithm: string;
     numPoints: number;
     workgroupSize: number;
+    numDispatches: number;
     data: Float32Array;
+    execsPerSecond: number;
   }
 
   const testCases: TestCase[] = [];
@@ -99,6 +101,8 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
           numPoints: numPoints,
           workgroupSize: workgroupSize,
           data: null,
+          numDispatches: 0,
+          execsPerSecond: 0,
         });
       }
     }
@@ -173,7 +177,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   const reduceGpu = (
     testDataSize: number,
     workgroupSize: number,
-    testCorrectness: boolean,
+    compareAgainstCpu: boolean,
     testDataCpu: Float32Array | null
   ) => {
     const commandEncoder = device.createCommandEncoder({
@@ -254,7 +258,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
 
     device.queue.submit([commandEncoder.finish()]);
 
-    if (testCorrectness) {
+    if (compareAgainstCpu) {
       const transferCommandEncoder = device.createCommandEncoder({
         label: 'transferCommandEncoder',
       });
@@ -295,6 +299,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
 
   const initTestCase = (testCase: TestCase) => {
     testCase.data = new Float32Array(testCase.numPoints);
+    testCase.numDispatches = calculateNumDispatches(testCases[testIndex]);
 
     for (let i = 0; i < testCase.numPoints; ++i) {
       testCase.data[i] = Math.random();
@@ -436,20 +441,15 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
         caseCount += casesPerPost;
 
         if (caseCount >= maxCaseCount) {
-          caseCount = 0;
-          const casesPerSecond = Math.floor(
+          testCase.execsPerSecond = Math.floor(
             (1000.0 * maxCaseCount) / (Date.now() - caseStartTime)
-          );
-          const numDispatches = calculateNumDispatches(testCases[testIndex]);
-          console.log(
-            `${testCase.algorithm} ${
-              testCase.workgroupSize
-            } ${testCase.numPoints.toLocaleString()} ${numDispatches}: ${casesPerSecond.toLocaleString()}`
           );
 
           testIndex++;
 
           if (testIndex < testCases.length) {
+            // start the next test case
+            caseCount = 0;
             sendExecuteMessage();
           } else {
             resetState();
