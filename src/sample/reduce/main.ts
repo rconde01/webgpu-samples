@@ -16,6 +16,27 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
 
   if (!pageState.active) return;
 
+  const topLevelDiv = document.createElement('div');
+  const logDiv = document.createElement('div');
+  logDiv.style.width = '30%';
+
+  const logTextEntry = document.createElement('textarea');
+  logDiv.appendChild(logTextEntry);
+
+  logTextEntry.textContent = 'test';
+
+  const plotDiv = document.createElement('div');
+  plotDiv.style.width = '30%';
+
+  topLevelDiv.appendChild(logDiv);
+  topLevelDiv.appendChild(plotDiv);
+
+  if (canvas.parentNode) {
+    canvas.parentNode.appendChild(topLevelDiv);
+  } else {
+    console.error('canvas.parentNode is null');
+  }
+
   canvas.hidden = true;
 
   interface TestCase {
@@ -174,12 +195,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     return workgroupSizeOptions;
   }
 
-  const reduceGpu = (
-    testDataSize: number,
-    workgroupSize: number,
-    compareAgainstCpu: boolean,
-    testDataCpu: Float32Array | null
-  ) => {
+  const reduceGpu = (testCase: TestCase, compareAgainstCpu: boolean) => {
     const commandEncoder = device.createCommandEncoder({
       label: 'commandEncoder',
     });
@@ -215,7 +231,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     };
 
     // Keep reducing until dataSize is 1
-    let dataSize = testDataSize;
+    let dataSize = testCase.numPoints;
     let dispatchNum = 0;
     while (dataSize > 1) {
       const inputBuffer = getInputBuffer(dispatchNum);
@@ -246,7 +262,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
         })
       );
 
-      const numWorkgroups = Math.ceil(dataSize / workgroupSize);
+      const numWorkgroups = Math.ceil(dataSize / testCase.workgroupSize);
 
       computePass.dispatchWorkgroups(numWorkgroups);
 
@@ -280,14 +296,18 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
       device.queue.submit([transferCommandEncoder.finish()]);
 
       transferBuffer.mapAsync(GPUMapMode.READ).then(() => {
-        console.log('CPU Reduce: ' + reduceCpu(testDataCpu));
+        const cpuResult = reduceCpu(testCase.data);
 
         const mappedBuffer = transferBuffer.getMappedRange(
           0,
           Float32Array.BYTES_PER_ELEMENT
         );
 
-        console.log('GPU Reduce: ' + new Float32Array(mappedBuffer)[0]);
+        const gpuResult = new Float32Array(mappedBuffer)[0];
+
+        const logLine = `algorithm:  cpu: ${cpuResult} gpu: ${gpuResult} dispatches: ${testCase.numDispatches}\n`;
+
+        logTextEntry.textContent = logTextEntry.textContent + logLine;
 
         transferBuffer.unmap();
         transferBuffer.destroy();
@@ -415,6 +435,8 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   // x-axis: [workgroupSize, algorithm, numpoints]
   // series: [workgroupSize, algorithm, numpoints]
 
+  // For check phase report out results, passed, num dispatches
+
   window.onmessage = () => {
     postMessagePending--;
 
@@ -424,12 +446,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
       if (state === State.runningChecks) {
         if (testIndex < testCases.length) {
           initTestCase(testCase);
-          reduceGpu(
-            testCase.numPoints,
-            testCase.workgroupSize,
-            true,
-            testCase.data
-          );
+          reduceGpu(testCase, true);
 
           testIndex++;
 
@@ -445,7 +462,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
         }
 
         for (let i = 0; i < casesPerPost; ++i) {
-          reduceGpu(testCase.numPoints, testCase.workgroupSize, false, null);
+          reduceGpu(testCase, false);
         }
 
         caseCount += casesPerPost;
