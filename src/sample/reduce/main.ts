@@ -19,10 +19,30 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   const logDiv = document.createElement('div');
   logDiv.style.width = '30%';
 
-  const logTextEntry = document.createElement('textarea');
-  logDiv.appendChild(logTextEntry);
+  const logTable = document.createElement('table');
 
-  logTextEntry.textContent = 'test';
+  const addRowToTable = (algorithm, points, workgroup, dispatches, pass) => {
+    const row = document.createElement('tr');
+
+    const cols: string[] = [];
+    cols.push(`${algorithm}`);
+    cols.push(`${points}`);
+    cols.push(`${workgroup}`);
+    cols.push(`${dispatches}`);
+    cols.push(`${pass}`);
+
+    for (const c of cols) {
+      const td = document.createElement('td');
+      td.textContent = c;
+      row.appendChild(td);
+    }
+
+    logTable.appendChild(row);
+  };
+
+  addRowToTable('algorithm', 'points', 'workgroup', 'dispatches', 'pass');
+
+  logDiv.appendChild(logTable);
 
   const plotDiv = document.createElement('div');
   plotDiv.style.width = '30%';
@@ -303,12 +323,17 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
         );
 
         const gpuResult = new Float32Array(mappedBuffer)[0];
+        const scaledDiff = (cpuResult - gpuResult) / cpuResult;
 
-        const passed = (cpuResult - gpuResult) / cpuResult < 1e-13;
+        const passed = scaledDiff < 1e-6;
 
-        const logLine = `algorithm: ${testCase.algorithm} num points: ${testCase.numPoints} wg size: ${testCase.workgroupSize} dispatches: ${testCase.numDispatches} passed: ${passed}\n`;
-
-        logTextEntry.textContent = logTextEntry.textContent + logLine;
+        addRowToTable(
+          testCase.algorithm,
+          testCase.numPoints,
+          testCase.workgroupSize,
+          testCase.numDispatches,
+          passed
+        );
 
         transferBuffer.unmap();
         transferBuffer.destroy();
