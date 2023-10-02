@@ -1,4 +1,5 @@
 import { makeSample, SampleInit } from '../../components/SampleLayout';
+import Chart from 'chart.js/auto';
 
 import reduceWGSL from './reduce.wgsl';
 
@@ -16,8 +17,9 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   if (!pageState.active) return;
 
   const topLevelDiv = document.createElement('div');
+  topLevelDiv.style.display = 'flex';
   const logDiv = document.createElement('div');
-  logDiv.style.width = '30%';
+  logDiv.style.flex = '30%';
 
   const logTable = document.createElement('table');
 
@@ -45,7 +47,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   logDiv.appendChild(logTable);
 
   const plotDiv = document.createElement('div');
-  plotDiv.style.width = '30%';
+  plotDiv.style.flex = '30%';
 
   topLevelDiv.appendChild(logDiv);
   topLevelDiv.appendChild(plotDiv);
@@ -416,12 +418,36 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   let postMessagePending = 0;
 
   const casesPerPost = 100;
-  const maxCaseCount = 10000;
+  const maxCaseCount = 100;
   let caseCount = 0;
   let testIndex = 0;
   let caseStartTime: number;
 
-  const reportBenchmarks = () => {};
+  const reportBenchmarks = () => {
+    const plot1Canvas = document.createElement('canvas');
+    plotDiv.appendChild(plot1Canvas);
+
+    new Chart(plot1Canvas, {
+      type: 'bar',
+      data: {
+        labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+        datasets: [
+          {
+            label: '# of Votes',
+            data: [12, 19, 3, 5, 2, 3],
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  };
 
   const cleanupBenchmarks = () => {};
 
