@@ -423,6 +423,44 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   let testIndex = 0;
   let caseStartTime: number;
 
+  // dimensions
+  // * num points
+  // * algorithm
+  // * workgroupSize
+
+  function removeDuplicates(arr) {
+    let unique = [];
+    arr.forEach((element) => {
+      if (!unique.includes(element)) {
+        unique.push(element);
+      }
+    });
+    return unique;
+  }
+
+  const createPlot = (xAxisParameter, seriesParameter) => {};
+
+  const createPlots = (xAxisParameter, seriesParameter) => {
+    const parameters = ['algorithm', 'numPoints', 'workgroupSize'];
+
+    const erase = (v) => {
+      parameters.splice(parameters.indexOf(v), 1);
+    };
+
+    erase(xAxisParameter);
+    erase(seriesParameter);
+
+    const plotParameter = parameters[0];
+
+    let plotVariants = [];
+
+    for (const t of testCases) {
+      plotVariants.push(t[plotParameter]);
+    }
+
+    plotVariants = removeDuplicates(plotVariants);
+  };
+
   const reportBenchmarks = () => {
     const plot1Canvas = document.createElement('canvas');
     plotDiv.appendChild(plot1Canvas);
