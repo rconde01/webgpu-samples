@@ -121,12 +121,14 @@ function appendStylesheet(): void {
   styleSheet.innerHTML = `
     .reduce-output {
       display: flex;
+      margin-bottom: 2rem;
     }
     
     .reduce-output-chart-wrapper {
       display: flex;
       align-items: flex-end;
       flex: 30%;
+      max-height: 420px;
     }
     
     .reduce-data-table {
@@ -160,8 +162,8 @@ function appendStylesheet(): void {
 
     .reduce-data-table-body {
       height: 400px;
-      overflow: auto;
       padding-right: 1rem;
+      overflow: auto;
     }
 
     .reduce-data-table-body [role="cell"] {
