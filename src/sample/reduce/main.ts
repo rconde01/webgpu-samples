@@ -1,5 +1,11 @@
 import { makeSample, SampleInit } from '../../components/SampleLayout';
-import Chart from 'chart.js/auto';
+
+import {
+  appendOutputBenchmarksChart,
+  appendOutputElements,
+  appendOutputTableRow,
+  clearOutputTable,
+} from './output';
 
 import reduceWGSL from './reduce.wgsl';
 
@@ -16,44 +22,8 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
 
   if (!pageState.active) return;
 
-  const topLevelDiv = document.createElement('div');
-  topLevelDiv.style.display = 'flex';
-  const logDiv = document.createElement('div');
-  logDiv.style.flex = '30%';
-
-  const logTable = document.createElement('table');
-
-  const addRowToTable = (algorithm, points, workgroup, dispatches, pass) => {
-    const row = document.createElement('tr');
-
-    const cols: string[] = [];
-    cols.push(`${algorithm}`);
-    cols.push(`${points}`);
-    cols.push(`${workgroup}`);
-    cols.push(`${dispatches}`);
-    cols.push(`${pass}`);
-
-    for (const c of cols) {
-      const td = document.createElement('td');
-      td.textContent = c;
-      row.appendChild(td);
-    }
-
-    logTable.appendChild(row);
-  };
-
-  addRowToTable('algorithm', 'points', 'workgroup', 'dispatches', 'pass');
-
-  logDiv.appendChild(logTable);
-
-  const plotDiv = document.createElement('div');
-  plotDiv.style.flex = '30%';
-
-  topLevelDiv.appendChild(logDiv);
-  topLevelDiv.appendChild(plotDiv);
-
   if (canvas.parentNode) {
-    canvas.parentNode.appendChild(topLevelDiv);
+    appendOutputElements(canvas.parentNode as HTMLElement);
   } else {
     console.error('canvas.parentNode is null');
   }
@@ -329,13 +299,13 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
 
         const passed = scaledDiff < 1e-6;
 
-        addRowToTable(
-          testCase.algorithm,
-          testCase.numPoints,
-          testCase.workgroupSize,
-          testCase.numDispatches,
-          passed
-        );
+        appendOutputTableRow({
+          algorithm: testCase.algorithm,
+          numPoints: testCase.numPoints,
+          workgroupSize: testCase.workgroupSize,
+          numDispatches: testCase.numDispatches,
+          passed,
+        });
 
         transferBuffer.unmap();
         transferBuffer.destroy();
@@ -462,29 +432,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   };
 
   const reportBenchmarks = () => {
-    const plot1Canvas = document.createElement('canvas');
-    plotDiv.appendChild(plot1Canvas);
-
-    new Chart(plot1Canvas, {
-      type: 'bar',
-      data: {
-        labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
-        datasets: [
-          {
-            label: '# of Votes',
-            data: [12, 19, 3, 5, 2, 3],
-            borderWidth: 1,
-          },
-        ],
-      },
-      options: {
-        scales: {
-          y: {
-            beginAtZero: true,
-          },
-        },
-      },
-    });
+    appendOutputBenchmarksChart();
   };
 
   const cleanupBenchmarks = () => {};
@@ -499,6 +447,7 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     {
       start: () => {
         if (state === State.stopped) {
+          clearOutputTable();
           resetState();
           cleanupBenchmarks();
           state = State.runningChecks;
@@ -586,7 +535,7 @@ const Reduce: () => JSX.Element = () =>
   makeSample({
     name: 'Reduce',
     description:
-      'Translates several CUDA reduce algorithms into WebGPU and benchmarks them with varying parameters.',
+      'Translates several CUDA reduce algorithms into WebGPU and benchmarks them with varying parameters. Outputs a table and chart with the results.',
     gui: true,
     init,
     sources: [
