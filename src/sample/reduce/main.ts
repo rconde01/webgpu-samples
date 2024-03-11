@@ -1,13 +1,34 @@
 import { makeSample, SampleInit } from '../../components/SampleLayout';
 
 import {
-  appendOutputBenchmarksChart,
+  appendOutputBenchmarksCharts,
   appendOutputElements,
   appendOutputTableRow,
   clearOutputTable,
+  TestCase,
 } from './output';
 
 import reduceWGSL from './reduce.wgsl';
+
+const permutator = (inputArr) => {
+  const result = [];
+
+  const permute = (arr, m = []) => {
+    if (arr.length === 0) {
+      result.push(m);
+    } else {
+      for (let i = 0; i < arr.length; i++) {
+        const curr = arr.slice();
+        const next = curr.splice(i, 1);
+        permute(curr.slice(), m.concat(next));
+      }
+    }
+  };
+
+  permute(inputArr);
+
+  return result;
+};
 
 const init: SampleInit = async ({ canvas, pageState, gui }) => {
   const adapter = await navigator.gpu.requestAdapter();
@@ -28,16 +49,8 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     console.error('canvas.parentNode is null');
   }
 
+  // This sample does not use a canvas
   canvas.hidden = true;
-
-  interface TestCase {
-    algorithm: string;
-    numPoints: number;
-    workgroupSize: number;
-    numDispatches: number;
-    data: Float32Array;
-    execsPerSecond: number;
-  }
 
   const testCases: TestCase[] = [];
   let testDataBuffer: GPUBuffer;
@@ -393,46 +406,10 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
   let testIndex = 0;
   let caseStartTime: number;
 
-  // dimensions
-  // * num points
-  // * algorithm
-  // * workgroupSize
-
-  function removeDuplicates(arr) {
-    let unique = [];
-    arr.forEach((element) => {
-      if (!unique.includes(element)) {
-        unique.push(element);
-      }
-    });
-    return unique;
-  }
-
-  const createPlot = (xAxisParameter, seriesParameter) => {};
-
-  const createPlots = (xAxisParameter, seriesParameter) => {
-    const parameters = ['algorithm', 'numPoints', 'workgroupSize'];
-
-    const erase = (v) => {
-      parameters.splice(parameters.indexOf(v), 1);
-    };
-
-    erase(xAxisParameter);
-    erase(seriesParameter);
-
-    const plotParameter = parameters[0];
-
-    let plotVariants = [];
-
-    for (const t of testCases) {
-      plotVariants.push(t[plotParameter]);
-    }
-
-    plotVariants = removeDuplicates(plotVariants);
-  };
+  const plotParameters = ['algorithm', 'numPoints', 'workgroupSize'];
 
   const reportBenchmarks = () => {
-    appendOutputBenchmarksChart();
+    appendOutputBenchmarksCharts(testCases,settings.plotConfig);
   };
 
   const cleanupBenchmarks = () => {};
@@ -442,6 +419,8 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     testIndex = 0;
     state = State.stopped;
   };
+
+  gui.width = 400;
 
   gui.add(
     {
@@ -468,6 +447,16 @@ const init: SampleInit = async ({ canvas, pageState, gui }) => {
     },
     'stop'
   );
+
+  const plotPermutations = permutator(plotParameters).map((o) => {
+    return `${o[0]}-${o[1]}-${o[2]}`;
+  });
+
+  const settings = {
+    plotConfig: plotPermutations[0],
+  };
+
+  gui.add(settings, 'plotConfig', plotPermutations);
 
   // Add case count control
   // Add selection for:

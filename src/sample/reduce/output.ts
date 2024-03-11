@@ -1,4 +1,5 @@
 import Chart from 'chart.js/auto';
+import test from 'node:test';
 
 type TableRowRecord = {
   algorithm: string;
@@ -6,6 +7,15 @@ type TableRowRecord = {
   workgroupSize: number;
   numDispatches: number;
   passed: boolean;
+};
+
+export type TestCase = {
+  algorithm: string;
+  numPoints: number;
+  workgroupSize: number;
+  numDispatches: number;
+  data: Float32Array;
+  execsPerSecond: number;
 };
 
 /**
@@ -24,42 +34,87 @@ export function appendOutputElements(parentNode: Node): void {
 /**
  * Adds a canvas element with the benchmark results chart to the output area.
  */
-export function appendOutputBenchmarksChart(): void {
-  let chartElement = document.querySelector<HTMLCanvasElement>(
-    '.reduce-output-chart'
-  );
-
-  if (chartElement === null) {
-    const plotWrapperElement = document.createElement('div');
-    plotWrapperElement.classList.add('reduce-output-chart-wrapper');
-
-    chartElement = document.createElement('canvas');
-    chartElement.classList.add('reduce-output-chart');
-    plotWrapperElement.appendChild(chartElement);
-
-    document.querySelector('.reduce-output').appendChild(plotWrapperElement);
+export function appendOutputBenchmarksCharts(
+  testCases: TestCase[],
+  plotConfig: string
+): void {
+  function removeDuplicates(arr: string[]) {
+    const unique = [];
+    arr.forEach((element) => {
+      if (!unique.includes(element)) {
+        unique.push(element);
+      }
+    });
+    return unique;
   }
 
-  new Chart(chartElement!, {
-    type: 'bar',
-    data: {
-      labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
-      datasets: [
-        {
-          label: '# of Votes',
-          data: [12, 19, 3, 5, 2, 3],
-          borderWidth: 1,
-        },
-      ],
-    },
-    options: {
-      scales: {
-        y: {
-          beginAtZero: true,
-        },
-      },
-    },
-  });
+  const plotParameters = plotConfig.split('-');
+
+  const perPlotParameter = plotParameters[0];
+  const perSeriesParameter = plotParameters[1];
+  const independentParameter = plotParameters[2];
+
+  let perPlotOptions = [];
+  let perSeriesOptions = [];
+  let independentOptions = [];
+
+  for (const t of testCases) {
+    perPlotOptions.push(t[perPlotParameter]);
+    perSeriesOptions.push(t[perSeriesParameter]);
+    independentOptions.push(t[independentParameter]);
+  }
+
+  perPlotOptions = removeDuplicates(perPlotOptions);
+  perSeriesOptions = removeDuplicates(perSeriesOptions);
+  independentOptions = removeDuplicates(independentOptions);
+
+  for (const ppo of perPlotOptions) {
+    let chartElement = document.querySelector<HTMLCanvasElement>(
+      `.reduce-output-chart-${ppo}`
+    );
+
+    if (chartElement === null) {
+      const plotWrapperElement = document.createElement('div');
+      plotWrapperElement.classList.add('reduce-output-chart-wrapper');
+
+      chartElement = document.createElement('canvas');
+      chartElement.classList.add('reduce-output-chart');
+      plotWrapperElement.appendChild(chartElement);
+
+      document.querySelector('.reduce-output').appendChild(plotWrapperElement);
+    }
+
+    const data = { datasets: [] };
+
+    for (const s of perSeriesOptions) {
+      const dataPoints = [];
+
+      for (const i of independentOptions) {
+        for (const t of testCases) {
+          if (
+            t[perPlotParameter] == ppo &&
+            t[perSeriesParameter] == s &&
+            t[independentParameter] == i
+          ) {
+            dataPoints.push({
+              x: t[independentParameter],
+              y: t.execsPerSecond,
+            });
+          }
+        }
+      }
+
+      data.datasets.push({
+        label: s,
+        data: dataPoints,
+      });
+    }
+
+    new Chart(chartElement, {
+      type: 'scatter',
+      data: data,
+    });
+  }
 }
 
 export function clearOutputTable(): void {
